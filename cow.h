@@ -172,6 +172,38 @@ namespace cow
         }
 
         template <typename _Pred>
+        bool removeFirst(_Pred predicate)
+        {
+            TLocker locker(_lock);
+
+            if (!_storage || _storage->empty())
+                return false;
+
+            auto it = std::find_if(_storage->begin(), _storage->end(), predicate);
+            if (it == _storage->end())
+                return false;
+
+            removeAt(it);
+            return true;
+        }
+
+        template <typename _Pred>
+        bool removeLast(_Pred predicate)
+        {
+            TLocker locker(_lock);
+
+            if (!_storage || _storage->empty())
+                return false;
+
+            auto rit = std::find_if(_storage->rbegin(), _storage->rend(), predicate);
+            if (rit == _storage->rend())
+                return false;
+
+            removeAt(--rit.base());
+            return true;
+        }
+
+        template <typename _Pred>
         bool exists(_Pred predicate) const
         {
             TStoragePtr storage_copy = copy();
@@ -197,10 +229,23 @@ namespace cow
                 return default_value;
 
             for (auto const& elem : *storage_copy)
-            {
                 if (predicate(elem))
                     return elem;
-            }
+
+            return default_value;
+        }
+
+        template <typename _Pred, typename _DefaultValue>
+        T find_last(_Pred predicate, _DefaultValue default_value) const
+        {
+            TStoragePtr storage_copy = copy();
+
+            if (!storage_copy)
+                return default_value;
+
+            for (auto it = storage_copy->rbegin(); it != storage_copy->rend(); ++it)
+                if (predicate(*it))
+                    return *it;
 
             return default_value;
         }
@@ -401,6 +446,26 @@ namespace cow
         {
             TLocker locker(_lock);
             return _storage;
+        }
+
+        void removeAt(typename TStorage::iterator it)
+        {
+            if (_storage->size() == 1) // it's single element and will remove it
+                _storage.reset();
+            else if (_storage.use_count() == 1) // nobody holds read-only copy of vector
+                _storage->erase(it);
+            else // somebody has a read-only copy
+            {
+                TStoragePtr newStorage = TStoragePtr(new TStorage());
+                newStorage->reserve(_storage->size());
+
+                if (it != _storage->begin())
+                    newStorage->insert(newStorage->end(), _storage->begin(), it);
+                if (++it != _storage->end())
+                    newStorage->insert(newStorage->end(), it, _storage->end());
+
+                _storage = newStorage;
+            }
         }
 
     private:
