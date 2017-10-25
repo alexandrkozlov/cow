@@ -1,2 +1,2 @@
-# Copy on write vector implementation.
+# Copy on write array implementation.
 See example.cpp
