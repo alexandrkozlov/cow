@@ -180,11 +180,8 @@ namespace cow
                 return false;
 
             auto it = std::find_if(_storage->begin(), _storage->end(), predicate);
-            if (it == _storage->end())
-                return false;
-
-            removeAt(it);
-            return true;
+            
+            return removeAt(it);
         }
 
         template <typename _Pred>
@@ -199,8 +196,7 @@ namespace cow
             if (rit == _storage->rend())
                 return false;
 
-            removeAt(--rit.base());
-            return true;
+            return removeAt(--rit.base());
         }
 
         template <typename _Pred>
@@ -208,14 +204,12 @@ namespace cow
         {
             TStoragePtr storage_copy = copy();
 
-            if (!storage_copy)
+            if (!storage_copy || _storage->empty())
                 return false;
 
             for (auto const& elem : *storage_copy)
-            {
                 if (predicate(elem))
                     return true;
-            }
 
             return false;
         }
@@ -225,7 +219,7 @@ namespace cow
         {
             TStoragePtr storage_copy = copy();
 
-            if (!storage_copy)
+            if (!storage_copy || _storage->empty())
                 return default_value;
 
             for (auto const& elem : *storage_copy)
@@ -240,7 +234,7 @@ namespace cow
         {
             TStoragePtr storage_copy = copy();
 
-            if (!storage_copy)
+            if (!storage_copy || _storage->empty())
                 return default_value;
 
             for (auto it = storage_copy->rbegin(); it != storage_copy->rend(); ++it)
@@ -448,8 +442,11 @@ namespace cow
             return _storage;
         }
 
-        void removeAt(typename TStorage::iterator it)
+        bool removeAt(typename TStorage::iterator it)
         {
+            if (it == _storage->end())
+                return false;
+
             if (_storage->size() == 1) // it's single element and will remove it
                 _storage.reset();
             else if (_storage.use_count() == 1) // nobody holds read-only copy of vector
@@ -466,6 +463,8 @@ namespace cow
 
                 _storage = newStorage;
             }
+
+            return true;
         }
 
     private:
